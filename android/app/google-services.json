@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1091435522886",
+    "project_id": "infinite-tictactoe-abbe2",
+    "storage_bucket": "infinite-tictactoe-abbe2.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1091435522886:android:7208f851ab211fe8315347",
+        "android_client_info": {
+          "package_name": "com.example.infinite_tictactoe"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAroXoIfwBcJ9FUpmfs2fssuxFdfWcxVwk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
