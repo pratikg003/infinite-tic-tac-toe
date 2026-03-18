@@ -55,6 +55,8 @@ class DefaultFirebaseOptions {
     appId: '1:1091435522886:android:7208f851ab211fe8315347',
     messagingSenderId: '1091435522886',
     projectId: 'infinite-tictactoe-abbe2',
+    databaseURL:
+        'https://infinite-tictactoe-abbe2-default-rtdb.asia-southeast1.firebasedatabase.app',
     storageBucket: 'infinite-tictactoe-abbe2.firebasestorage.app',
   );
 

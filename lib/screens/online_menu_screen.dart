@@ -15,6 +15,12 @@ class _OnlineMenuScreenState extends State<OnlineMenuScreen> {
   bool _isLoading = false;
   String? _createdCode;
 
+  @override
+  void dispose() {
+    _codeController.dispose();
+    super.dispose();
+  }
+
   Future<void> _handleCreate() async {
     setState(() => _isLoading = true);
     final code = await _service.createRoom();
@@ -26,29 +32,37 @@ class _OnlineMenuScreenState extends State<OnlineMenuScreen> {
 
   Future<void> _handleJoin() async {
     final code = _codeController.text.trim().toUpperCase();
-    if (code.length != 4) return;
+    if (code.length != 4) {
+      _showMessage('Please enter a 4-letter code.');
+      return;
+    }
 
     setState(() => _isLoading = true);
-    final success = await _service.joinRoom(code);
+    final error = await _service.joinRoom(code);
     setState(() => _isLoading = false);
 
-    if (!success && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Room not found or already full.')),
-      );
+    if (error != null) {
+      _showMessage(error);
+    } else {
+      _showMessage('Joined! Game is live. Board coming next session.');
     }
-    // TODO next step: navigate to the online game screen on success
+  }
+
+  void _showMessage(String msg) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(msg)));
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Play Online')),
-      body: Padding(
-        padding: const EdgeInsets.all(24),
-        child: _isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : Column(
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   ElevatedButton(
@@ -56,7 +70,7 @@ class _OnlineMenuScreenState extends State<OnlineMenuScreen> {
                     child: const Text('Create Room'),
                   ),
                   if (_createdCode != null) ...[
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 20),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -66,15 +80,19 @@ class _OnlineMenuScreenState extends State<OnlineMenuScreen> {
                         ),
                         IconButton(
                           icon: const Icon(Icons.copy),
-                          onPressed: () => Clipboard.setData(
-                            ClipboardData(text: _createdCode!),
-                          ),
+                          onPressed: () {
+                            Clipboard.setData(
+                              ClipboardData(text: _createdCode!),
+                            );
+                            _showMessage('Code copied!');
+                          },
                         ),
                       ],
                     ),
                     const Text(
-                      'Waiting for opponent...',
+                      'Waiting for opponent to join...',
                       textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.grey),
                     ),
                   ],
                   const SizedBox(height: 40),
@@ -89,13 +107,14 @@ class _OnlineMenuScreenState extends State<OnlineMenuScreen> {
                     textCapitalization: TextCapitalization.characters,
                     maxLength: 4,
                   ),
+                  const SizedBox(height: 8),
                   ElevatedButton(
                     onPressed: _handleJoin,
                     child: const Text('Join Room'),
                   ),
                 ],
               ),
-      ),
+            ),
     );
   }
 }
