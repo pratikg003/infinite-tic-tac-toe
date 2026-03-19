@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:infinite_tictactoe/screens/online_game_screen.dart';
 import 'package:infinite_tictactoe/service/game_service.dart';
 
 class OnlineMenuScreen extends StatefulWidget {
@@ -21,32 +22,54 @@ class _OnlineMenuScreenState extends State<OnlineMenuScreen> {
     super.dispose();
   }
 
-  Future<void> _handleCreate() async {
-    setState(() => _isLoading = true);
-    final code = await _service.createRoom();
-    setState(() {
-      _createdCode = code;
-      _isLoading = false;
-    });
+
+Future<void> _handleCreate() async {
+  setState(() => _isLoading = true);
+  final code = await _service.createRoom();
+  if (!mounted) return;
+
+  // Creator is always X — navigate immediately,
+  // game screen shows "waiting" until opponent joins
+  Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (_) => OnlineGameScreen(
+        roomCode: code,
+        mySymbol: 'X',
+      ),
+    ),
+  );
+
+  setState(() => _isLoading = false);
+}
+
+Future<void> _handleJoin() async {
+  final code = _codeController.text.trim().toUpperCase();
+  if (code.length != 4) {
+    _showMessage('Please enter a 4-letter code.');
+    return;
   }
 
-  Future<void> _handleJoin() async {
-    final code = _codeController.text.trim().toUpperCase();
-    if (code.length != 4) {
-      _showMessage('Please enter a 4-letter code.');
-      return;
-    }
+  setState(() => _isLoading = true);
+  final error = await _service.joinRoom(code);
+  setState(() => _isLoading = false);
 
-    setState(() => _isLoading = true);
-    final error = await _service.joinRoom(code);
-    setState(() => _isLoading = false);
-
-    if (error != null) {
-      _showMessage(error);
-    } else {
-      _showMessage('Joined! Game is live. Board coming next session.');
-    }
+  if (error != null) {
+    _showMessage(error);
+  } else {
+    if (!mounted) return;
+    // Joiner is always O
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => OnlineGameScreen(
+          roomCode: code,
+          mySymbol: 'O',
+        ),
+      ),
+    );
   }
+}
 
   void _showMessage(String msg) {
     if (!mounted) return;
