@@ -27,8 +27,8 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
   void initState() {
     super.initState();
 
-    // watchRoom() returns a Stream that fires every time the
-    // database node changes — this is the magic of RTDB.
+    _service.registerDisconnectHandler(widget.roomCode);
+
     _service.watchRoom(widget.roomCode).listen((event) {
       if (!mounted) return;
       if (event.snapshot.exists) {
@@ -37,6 +37,12 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
         });
       }
     });
+  }
+
+  @override
+  void dispose() {
+    _service.leaveRoom(widget.roomCode);
+    super.dispose();
   }
 
   // Helpers to read cleanly from _gameState
@@ -61,18 +67,18 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
 
   Future<void> _handleTap(int index) async {
     // Guard clauses — bail out if the tap is invalid
-    print('>> tapped index $index');
-    print('>> _gameState null? ${_gameState == null}');
-    print('>> isMyTurn? $_isMyTurn');
-    print('>> status: ${_gameState?['status']}');
-    print('>> cell value: "${_board[index]}"');
+    // print('>> tapped index $index');
+    // print('>> _gameState null? ${_gameState == null}');
+    // print('>> isMyTurn? $_isMyTurn');
+    // print('>> status: ${_gameState?['status']}');
+    // print('>> cell value: "${_board[index]}"');
 
     if (_gameState == null) return;
     if (!_isMyTurn) return;
     if (_gameState!['status'] != 'live') return;
     if (_board[index] != '') return;
 
-    print('>> passed all guards, making move...');
+    // print('>> passed all guards, making move...');
 
     final symbol = widget.mySymbol;
     final opponent = symbol == 'X' ? 'O' : 'X';
@@ -157,6 +163,31 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
               ),
               const SizedBox(height: 8),
               const Text('Share this code with your opponent'),
+            ],
+          ),
+        ),
+      );
+    }
+
+    //abandoned
+    if (status == 'abandoned') {
+      return Scaffold(
+        appBar: AppBar(title: Text('Room: ${widget.roomCode}')),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.wifi_off, size: 64, color: Colors.grey),
+              const SizedBox(height: 24),
+              const Text(
+                'Opponent disconnected',
+                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Back to Menu'),
+              ),
             ],
           ),
         ),

@@ -101,4 +101,17 @@ class GameService {
       'status': 'live',
     });
   }
+
+  Future<void> registerDisconnectHandler(String roomCode) async {
+    final uid = _auth.currentUser?.uid;
+    if (uid == null) return;
+
+    await _db.child('games/$roomCode/status').onDisconnect().set('abandoned');
+  }
+
+  Future<void> leaveRoom(String roomCode) async {
+    await _db.child('games/$roomCode/status').onDisconnect().cancel();
+
+    await _db.child('games/$roomCode').remove();
+  }
 }
