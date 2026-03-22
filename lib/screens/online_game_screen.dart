@@ -65,13 +65,18 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
     );
   }
 
+  int? get _indexToBeRemoved {
+    if (_gameState == null) return null;
+    if (!_isMyTurn) return null;
+
+    final queue = _getQueue(widget.mySymbol);
+    if (queue.length < 3) return null;
+
+    return queue.first;
+  }
+
   Future<void> _handleTap(int index) async {
     // Guard clauses — bail out if the tap is invalid
-    // print('>> tapped index $index');
-    // print('>> _gameState null? ${_gameState == null}');
-    // print('>> isMyTurn? $_isMyTurn');
-    // print('>> status: ${_gameState?['status']}');
-    // print('>> cell value: "${_board[index]}"');
 
     if (_gameState == null) return;
     if (!_isMyTurn) return;
@@ -223,22 +228,44 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
                 ),
                 itemCount: 9,
                 itemBuilder: (context, index) {
+                  final cellValue = board[index];
+                  final isDoomed = index == _indexToBeRemoved;
+
+                  // Decide cell border style
+                  final border = isDoomed
+                      ? Border.all(color: Colors.orange, width: 2)
+                      : Border.all(color: Colors.black);
+
+                  // Decide text color and opacity
+                  Color symbolColor;
+                  if (cellValue == widget.mySymbol) {
+                    symbolColor = Colors.blue;
+                  } else {
+                    symbolColor = Colors.red;
+                  }
                   return GestureDetector(
                     onTap: winner == null ? () => _handleTap(index) : null,
-                    child: Container(
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 300),
                       decoration: BoxDecoration(
-                        border: Border.all(color: Colors.black),
+                        border: border,
+                        // Subtle warm tint on the doomed cell
+                        color: isDoomed
+                            ? Colors.orange.withValues(alpha: 0.08)
+                            : Colors.transparent,
                       ),
                       child: Center(
-                        child: Text(
-                          board[index],
-                          style: TextStyle(
-                            fontSize: 40,
-                            fontWeight: FontWeight.bold,
-                            // Dim marks that aren't yours
-                            color: board[index] == widget.mySymbol
-                                ? Colors.blue
-                                : Colors.red,
+                        child: AnimatedOpacity(
+                          duration: const Duration(milliseconds: 300),
+                          // Dim the doomed mark to 35% opacity
+                          opacity: isDoomed ? 0.35 : 1.0,
+                          child: Text(
+                            cellValue,
+                            style: TextStyle(
+                              fontSize: 40,
+                              fontWeight: FontWeight.bold,
+                              color: symbolColor,
+                            ),
                           ),
                         ),
                       ),
