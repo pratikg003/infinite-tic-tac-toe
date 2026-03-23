@@ -99,6 +99,8 @@ class GameService {
       'turn': 'X',
       'winner': null,
       'status': 'live',
+      'rematchX': false,
+      'rematchO': false,
     });
   }
 
@@ -113,5 +115,10 @@ class GameService {
     await _db.child('games/$roomCode/status').onDisconnect().cancel();
 
     await _db.child('games/$roomCode').remove();
+  }
+
+  Future<void> requestRematch(String roomCode, String mySymbol) async {
+    final key = mySymbol == 'X' ? 'rematchX' : 'rematchO';
+    await _db.child('games/$roomCode/$key').set(true);
   }
 }

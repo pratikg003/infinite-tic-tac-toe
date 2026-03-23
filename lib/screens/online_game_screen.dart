@@ -31,11 +31,17 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
 
     _service.watchRoom(widget.roomCode).listen((event) {
       if (!mounted) return;
-      if (event.snapshot.exists) {
-        setState(() {
-          _gameState = Map<String, dynamic>.from(event.snapshot.value as Map);
-        });
+      if (!event.snapshot.exists) return;
+
+      final data = Map<String, dynamic>.from(event.snapshot.value as Map);
+
+      // If both players want a rematch, do the actual reset
+      if (data['rematchX'] == true && data['rematchO'] == true) {
+        _service.resetRoom(widget.roomCode);
+        return;
       }
+
+      setState(() => _gameState = data);
     });
   }
 
@@ -207,82 +213,144 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
         ? (winner == widget.mySymbol ? '🎉 You win!' : '😔 You lose!')
         : (_isMyTurn ? 'Your turn (${widget.mySymbol})' : "Opponent's turn");
 
-    return Scaffold(
-      appBar: AppBar(title: Text('Room: ${widget.roomCode}')),
-      body: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(
-            statusText,
-            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
+
+        final shouldLeave = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: Text('Leave game?'),
+            content: Text(
+              'Your opponent will be notified and the room will be closed.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Stay'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Leave', style: TextStyle(color: Colors.red)),
+              ),
+            ],
           ),
-          const SizedBox(height: 24),
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: AspectRatio(
-              aspectRatio: 1,
-              child: GridView.builder(
-                physics: const NeverScrollableScrollPhysics(),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 3,
-                ),
-                itemCount: 9,
-                itemBuilder: (context, index) {
-                  final cellValue = board[index];
-                  final isDoomed = index == _indexToBeRemoved;
+        );
+        if (shouldLeave == true && context.mounted) {
+          Navigator.pop(context);
+        }
+      },
+      child: Scaffold(
+        appBar: AppBar(title: Text('Room: ${widget.roomCode}')),
+        body: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              statusText,
+              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 24),
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: AspectRatio(
+                aspectRatio: 1,
+                child: GridView.builder(
+                  physics: const NeverScrollableScrollPhysics(),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 3,
+                  ),
+                  itemCount: 9,
+                  itemBuilder: (context, index) {
+                    final cellValue = board[index];
+                    final isDoomed = index == _indexToBeRemoved;
 
-                  // Decide cell border style
-                  final border = isDoomed
-                      ? Border.all(color: Colors.orange, width: 2)
-                      : Border.all(color: Colors.black);
+                    // Decide cell border style
+                    final border = isDoomed
+                        ? Border.all(color: Colors.orange, width: 2)
+                        : Border.all(color: Colors.black);
 
-                  // Decide text color and opacity
-                  Color symbolColor;
-                  if (cellValue == widget.mySymbol) {
-                    symbolColor = Colors.blue;
-                  } else {
-                    symbolColor = Colors.red;
-                  }
-                  return GestureDetector(
-                    onTap: winner == null ? () => _handleTap(index) : null,
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 300),
-                      decoration: BoxDecoration(
-                        border: border,
-                        // Subtle warm tint on the doomed cell
-                        color: isDoomed
-                            ? Colors.orange.withValues(alpha: 0.08)
-                            : Colors.transparent,
-                      ),
-                      child: Center(
-                        child: AnimatedOpacity(
-                          duration: const Duration(milliseconds: 300),
-                          // Dim the doomed mark to 35% opacity
-                          opacity: isDoomed ? 0.35 : 1.0,
-                          child: Text(
-                            cellValue,
-                            style: TextStyle(
-                              fontSize: 40,
-                              fontWeight: FontWeight.bold,
-                              color: symbolColor,
+                    // Decide text color and opacity
+                    Color symbolColor;
+                    if (cellValue == widget.mySymbol) {
+                      symbolColor = Colors.blue;
+                    } else {
+                      symbolColor = Colors.red;
+                    }
+                    return GestureDetector(
+                      onTap: winner == null ? () => _handleTap(index) : null,
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 300),
+                        decoration: BoxDecoration(
+                          border: border,
+                          // Subtle warm tint on the doomed cell
+                          color: isDoomed
+                              ? Colors.orange.withValues(alpha: 0.08)
+                              : Colors.transparent,
+                        ),
+                        child: Center(
+                          child: AnimatedOpacity(
+                            duration: const Duration(milliseconds: 300),
+                            // Dim the doomed mark to 35% opacity
+                            opacity: isDoomed ? 0.35 : 1.0,
+                            child: Text(
+                              cellValue,
+                              style: TextStyle(
+                                fontSize: 40,
+                                fontWeight: FontWeight.bold,
+                                color: symbolColor,
+                              ),
                             ),
                           ),
                         ),
                       ),
-                    ),
+                    );
+                  },
+                ),
+              ),
+            ),
+            if (winner != null) ...[
+              const SizedBox(height: 16),
+
+              // Show different text depending on whether this player
+              // has already requested a rematch
+              Builder(
+                builder: (context) {
+                  final myKey = widget.mySymbol == 'X'
+                      ? 'rematchX'
+                      : 'rematchO';
+                  final opponentKey = widget.mySymbol == 'X'
+                      ? 'rematchO'
+                      : 'rematchX';
+                  final iRequested = _gameState?[myKey] == true;
+                  final theyRequested = _gameState?[opponentKey] == true;
+
+                  return Column(
+                    children: [
+                      if (theyRequested && !iRequested)
+                        const Text(
+                          'Opponent wants a rematch!',
+                          style: TextStyle(color: Colors.orange),
+                        ),
+                      const SizedBox(height: 8),
+                      ElevatedButton(
+                        onPressed: iRequested
+                            ? null // already requested — button disabled
+                            : () => _service.requestRematch(
+                                widget.roomCode,
+                                widget.mySymbol,
+                              ),
+                        child: Text(
+                          iRequested ? 'Waiting for opponent...' : 'Play Again',
+                        ),
+                      ),
+                    ],
                   );
                 },
               ),
-            ),
-          ),
-          if (winner != null) ...[
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: () => _service.resetRoom(widget.roomCode),
-              child: const Text('Play Again'),
-            ),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }
